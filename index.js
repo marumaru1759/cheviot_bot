@@ -25,6 +25,15 @@ app.post('/webhook', (req, res) => {
       // will only ever contain one message, so we get index 0
       let webhook_event = entry.messaging[0];
       console.log(webhook_event);
+
+      let sender_psid = webhook_event.sender.id;
+      console.log('Sender PSID: ' + sender_psid);
+
+      if(webhook_event.message){
+      	handleMessage(sender_psid, webhook_event.message);
+      } else if (webhook_event.postback){
+      	handlePostback(sender_psid, webhook_event.postback);
+      }
     });
 
     // Returns a '200 OK' response to all requests
@@ -40,7 +49,7 @@ app.post('/webhook', (req, res) => {
 app.get('/webhook', (req, res) => {
 
   // Your verify token. Should be a random string.
-  let VERIFY_TOKEN = process.env.FB_TOKEN
+  let VERIFY_TOKEN = process.env.PAGE_ACCESS_TOKEN;
     
   // Parse the query params
   let mode = req.query['hub.mode'];
@@ -63,3 +72,44 @@ app.get('/webhook', (req, res) => {
     }
   }
 });
+
+
+function handleMessage(sender_psid, received_message){
+
+	let response;
+
+	if(received_message.text){
+
+		response = {
+			"text": 'You sent the message: "${received_message.text}" Now send me an image!'
+		}
+	}
+
+	//
+	callSendAPI(sender_psid, response);
+}
+
+function callSendAPI(sender_psid, response){
+	let request_body = {
+		"recipient":{
+			"id": sender_psid
+		},
+		"message": response
+	}
+
+	//Send the HTTP request to the Messenger Platform
+	request({
+    "uri": "https://graph.facebook.com/v2.6/me/messages",
+    "qs": { "access_token": PAGE_ACCESS_TOKEN },
+    "method": "POST",
+    "json": request_body
+  }, (err, res, body) => {
+    if (!err) {
+      console.log('message sent!')
+    } else {
+      console.error("Unable to send message:" + err);
+    }
+  }); 
+
+
+}
